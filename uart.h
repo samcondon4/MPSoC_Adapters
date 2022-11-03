@@ -23,7 +23,7 @@
 typedef u8 HEADER_TYPE;
 typedef u16 GROUP_TYPE;
 typedef u8 TERMINATOR_TYPE;
-typedef enum ComStatus { PKT_SUCCESS=0, PKT_NO_TERMINATOR=1 } ComStatus;
+typedef enum ComStatus { PKT_HEADER_FOUND, PKT_NO_HEADER, PKT_TERMINATOR_FOUND, PKT_NO_TERMINATOR } ComStatus;
 
 
 class UartAdapter;
@@ -39,6 +39,8 @@ class AdapterPacket {
 public:
 	HEADER_TYPE header[HEADER_SIZE];
 	TERMINATOR_TYPE terminator[TERMINATOR_SIZE];
+	u32 header_size;
+	u32 terminator_size;
 
 	u32 pkt_size;
 	u8 *pkt_head;
@@ -56,10 +58,11 @@ public:
 
 	u32 isr_status;
 	AdapterPacket *packet;
-	u32 write_packet(void);
+	ComStatus check_header(void);
+	ComStatus write_packet(void);
 	u32 clear_packet(void);
 	u32 clear_rx_fifo(void);
-	u8 strcmp(u8 *str0, u8 *str1, u32 cmp_size);
+	u32 strcmp(u8 *str0, u8 *str1, u32 cmp_size);
 	u32 enable_interrupts(void);
 	u32 disable_interrupts(void);
 	u32 clear_interrupts(void);

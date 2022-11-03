@@ -15,6 +15,9 @@ AdapterPacket::AdapterPacket(void){
 		this->terminator[i] = TERMINATOR_VALUE;
 	}
 
+	this->header_size = sizeof(this->header);
+	this->terminator_size = sizeof(this->terminator);
+
 	// set the packet head //
 	this->pkt_head = this->pkt_data;
 
@@ -49,6 +52,7 @@ UartAdapter::UartAdapter(u16 hw_id, u32 intr_id, void (*post)(UartAdapter *callb
 
 	this->child = this;
 	this->post = post;
+	this->packet = packet;
 	this->lookup_config = XUartPs_LookupConfig;
 	this->config_init = uart_cfg_initialize;
 
@@ -61,7 +65,32 @@ UartAdapter::UartAdapter(u16 hw_id, u32 intr_id, void (*post)(UartAdapter *callb
 	this->configure_interrupts();
 }
 
-u32 UartAdapter::write_packet(void){
+ComStatus UartAdapter::check_header(void){
+	u32 bytes;
+	HEADER_TYPE head[HEADER_SIZE];
+	u32 header_found;
+	ComStatus ret;
+
+	bytes = 0xff;
+	header_found = 1;
+	while(bytes != 0x00000000 && header_found != 0x00000000){
+		bytes = XUartPs_Recv(&(this->connection), head, this->packet->header_size);
+		header_found = this->strcmp(head, this->packet->header, this->packet->header_size);
+	}
+
+	switch(header_found){
+	case 1:
+		ret = PKT_NO_HEADER;
+		break;
+	case 0:
+		ret = PKT_HEADER_FOUND;
+		break;
+	}
+
+	return ret;
+}
+
+ComStatus UartAdapter::write_packet(void){
 
 	u32 bytes;
 	u32 pkt_size;
@@ -89,14 +118,14 @@ u32 UartAdapter::write_packet(void){
 	// if the terminator was found, clear it from the packet and return a success. //
 	if (this->strcmp(pkt_head, terminator, TERMINATOR_SIZE) == 0) {
 		*pkt_head = 0x00;
-		ret = PKT_SUCCESS;
+		ret = PKT_TERMINATOR_FOUND;
 	}
 	// otherwise, return terminator not found error //
 	else {
 		ret = PKT_NO_TERMINATOR;
 	}
 
-	return (u32)ret;
+	return ret;
 }
 
 u32 UartAdapter::clear_packet(void){
@@ -124,12 +153,12 @@ u32 UartAdapter::clear_rx_fifo(void){
 	return 0;
 }
 
-u8 UartAdapter::strcmp(u8 *str0, u8 *str1, u32 cmp_size){
+u32 UartAdapter::strcmp(u8 *str0, u8 *str1, u32 cmp_size){
 	u32 i;
-	u8 ret = 0;
+	u32 ret = 0;
 	for(i = 0; i < cmp_size; i++){
 		if (str0[i] != str1[i]){
-			ret = -1;
+			ret = 1;
 			break;
 		}
 	}

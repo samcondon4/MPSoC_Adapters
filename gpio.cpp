@@ -11,7 +11,23 @@ GpioAdapter::GpioAdapter(u16 hw_id, u32 intr_id, void (*post)(GpioAdapter *callb
 	this->lookup_config = XGpio_LookupConfig;
 	this->config_init = XGpio_CfgInitialize;
 	this->init_hw();
+
+	// - configure data directions - //
+	XGpio_SetDataDirection(&(this->connection), 1, GPIO_CHANNEL_1_DIR);
+	XGpio_SetDataDirection(&(this->connection), 2, GPIO_CHANNEL_2_DIR);
+
 	this->configure_interrupts();
+
+}
+
+u32 GpioAdapter::read_state(u8 channel){
+	u32 state;
+	state = XGpio_DiscreteRead(&(this->connection), channel);
+	return state;
+}
+
+void GpioAdapter::write_state(u8 channel, u32 state){
+	XGpio_DiscreteWrite(&(this->connection), channel, state);
 }
 
 u32 GpioAdapter::enable_interrupts(void){
